@@ -34,21 +34,32 @@ jobs:
           az group create -n $RG_NAME -l $LOCATION
 
       # Deploy infra (idempotent)
-      - name: Deploy Bicep
-        uses: azure/arm-deploy@v1
-        with:
-          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          resourceGroupName: ${{ env.RG_NAME }}
-          template: infra/main.bicep
-          parameters: >
-            appName=${{ env.APP_NAME }}
-            location=${{ env.LOCATION }}
-            sqlAdmin=${{ env.SQL_ADMIN }}
-            sqlPassword=${{ secrets.SQL_PASSWORD }}
-            finnhubApiKey=${{ secrets.FINNHUB_API_KEY }}
-          deploymentName: deploy-${{ github.run_id }}
-          failOnStdErr: false
-          deploymentMode: Incremental
+      - name: Deploy Bicep (CLI)
+        shell: bash
+        env:
+         SUB_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+         RG_NAME: ${{ env.RG_NAME }}
+         APP_NAME: ${{ env.APP_NAME }}
+         LOCATION: ${{ env.LOCATION }}
+         SQL_ADMIN: ${{ env.SQL_ADMIN }}
+         SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
+         FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+        run: |
+            set -e
+            az account set --subscription "$SUB_ID"
+            az group create -n "$RG_NAME" -l "$LOCATION"
+            az bicep install >/dev/null 2>&1 || true
+            az bicep upgrade  >/dev/null 2>&1 || true
+
+            az deployment group create \
+                --resource-group "$RG_NAME" \
+                --name "deploy-$GITHUB_RUN_ID" \
+                --template-file infra/main.bicep \
+                --parameters appName="$APP_NAME" \
+                            location="$LOCATION" \
+                            sqlAdmin="$SQL_ADMIN" \
+                            sqlPassword="$SQL_PASSWORD" \
+                            finnhubApiKey="$FINNHUB_API_KEY"
 
       # EF Migration against the Azure SQL
       - name: Get runner public IP
