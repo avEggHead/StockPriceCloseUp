@@ -28,26 +28,78 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Ensure Resource Group exists
-        run: az group create -n $RG_NAME -l $LOCATION --only-show-errors -o none
+      # ---- Provision Azure Resources (CLI only) ----
+      - name: Provision Azure Resources
+        run: |
+          set -e
 
-      # Deploy infrastructure using Bicep (unique deployment name avoids “response consumed” bug)
-      - name: Deploy Bicep
-        uses: azure/arm-deploy@v1
-        with:
-          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          resourceGroupName: ${{ env.RG_NAME }}
-          template: infra/main.bicep
-          parameters: >
-            appName=${{ env.APP_NAME }}
-            location=${{ env.LOCATION }}
-            sqlAdmin=${{ env.SQL_ADMIN }}
-            sqlPassword=${{ secrets.SQL_PASSWORD }}
-            finnhubApiKey=${{ secrets.FINNHUB_API_KEY }}
-          deploymentName: deploy-${{ github.run_id }}
-          failOnStdErr: false
+          # RG
+          az group create -n $RG_NAME -l $LOCATION --only-show-errors -o none
 
-      # ---- EF Core migrations against Azure SQL ----
+          # App Service Plan (Free, Windows)
+          az appservice plan create \
+            -g $RG_NAME \
+            -n ${APP_NAME}-plan \
+            --sku F1 \
+            --is-linux false
+
+          # Web App with Managed Identity
+          az webapp create \
+            -g $RG_NAME \
+            -p ${APP_NAME}-plan \
+            -n $APP_NAME \
+            --runtime "DOTNET:8" \
+            --assign-identity
+
+          # SQL Server + Database (serverless, auto-pause)
+          az sql server create \
+            -g $RG_NAME \
+            -n ${APP_NAME}-sql \
+            -u $SQL_ADMIN \
+            -p "${{ secrets.SQL_PASSWORD }}" \
+            -l $LOCATION
+
+          az sql db create \
+            -g $RG_NAME \
+            -s ${APP_NAME}-sql \
+            -n appdb \
+            --service-objective GP_S_Gen5_1 \
+            --compute-model Serverless \
+            --auto-pause-delay 60
+
+          # Key Vault + secret
+          az keyvault create \
+            -g $RG_NAME \
+            -n ${APP_NAME}-kv \
+            -l $LOCATION \
+            --enable-rbac-authorization true
+
+          az keyvault secret set \
+            --vault-name ${APP_NAME}-kv \
+            --name Finnhub-ApiKey \
+            --value "${{ secrets.FINNHUB_API_KEY }}"
+
+          # Assign Web App identity permission to read secrets
+          principalId=$(az webapp identity show -g $RG_NAME -n $APP_NAME --query principalId -o tsv)
+          kvId=$(az keyvault show -g $RG_NAME -n ${APP_NAME}-kv --query id -o tsv)
+          az role assignment create \
+            --assignee $principalId \
+            --role "Key Vault Secrets User" \
+            --scope $kvId
+
+          # Configure app settings
+          az webapp config appsettings set \
+            -g $RG_NAME -n $APP_NAME \
+            --settings KeyVaultName=${APP_NAME}-kv ASPNETCORE_ENVIRONMENT=Production
+
+          # Connection string
+          fqdn=$(az sql server show -g $RG_NAME -n ${APP_NAME}-sql --query fullyQualifiedDomainName -o tsv)
+          az webapp config connection-string set \
+            -g $RG_NAME -n $APP_NAME \
+            --settings DefaultConnection="Server=tcp:$fqdn,1433;Initial Catalog=appdb;Persist Security Info=False;User ID=$SQL_ADMIN;Password=${{ secrets.SQL_PASSWORD }};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;" \
+            --connection-string-type SQLAzure
+
+      # ---- EF Core migrations ----
       - name: Get runner public IP
         id: ip
         run: echo "ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
@@ -66,21 +118,11 @@ jobs:
           dotnet tool install --global dotnet-ef
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      # Resolve SQL server FQDN dynamically (avoids hardcoded env URL)
-      - name: Resolve SQL FQDN
-        id: fqdn
-        run: |
-          fqdn=$(az sql server show \
-            --resource-group $RG_NAME \
-            --name ${APP_NAME}-sql \
-            --query fullyQualifiedDomainName -o tsv)
-          echo "fqdn=$fqdn" >> $GITHUB_OUTPUT
-
       - name: Run EF Core migrations (Database.Update)
         working-directory: src/WebMvc
         env:
           ConnectionStrings__DefaultConnection: >-
-            Server=tcp:${{ steps.fqdn.outputs.fqdn }},1433;
+            Server=tcp:${{ env.APP_NAME }}-sql.database.windows.net,1433;
             Initial Catalog=appdb;
             Persist Security Info=False;
             User ID=${{ env.SQL_ADMIN }};
