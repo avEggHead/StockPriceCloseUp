@@ -74,6 +74,7 @@ resource allowAzureIPs 'Microsoft.Sql/servers/firewallRules@2022-05-01-preview' 
 resource sqlDb 'Microsoft.Sql/servers/databases@2022-05-01-preview' = {
   name: 'appdb'
   parent: sqlServer
+  location: location
   sku: {
     name: 'GP_S_Gen5_1' // GeneralPurpose Serverless, Gen5, 1 vCore max
     tier: 'GeneralPurpose'

@@ -46,6 +46,7 @@ jobs:
             sqlAdmin=${{ env.SQL_ADMIN }}
             sqlPassword=${{ secrets.SQL_PASSWORD }}
             finnhubApiKey=${{ secrets.FINNHUB_API_KEY }}
+          deploymentName: deploy-${{ github.run_id }}
           failOnStdErr: false
           deploymentMode: Incremental
 
