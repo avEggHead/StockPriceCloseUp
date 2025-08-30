@@ -49,6 +49,51 @@ jobs:
           failOnStdErr: false
           deploymentMode: Incremental
 
+      # EF Migration against the Azure SQL
+      - name: Get runner public IP
+        id: ip
+        run: echo "ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
+
+      - name: Open temporary SQL firewall for runner
+        run: |
+          az sql server firewall-rule create \
+            --resource-group $RG_NAME \
+            --server ${APP_NAME}-sql \
+            --name AllowGitHubRunner \
+            --start-ip-address ${{ steps.ip.outputs.ip }} \
+            --end-ip-address   ${{ steps.ip.outputs.ip }}
+
+      - name: Install dotnet-ef tool
+        run: |
+          dotnet tool install --global dotnet-ef
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Run EF Core migrations (Database.Update)
+        working-directory: src/WebMvc
+        env:
+          # Build the same connection string we injected via Bicep
+          ConnectionStrings__DefaultConnection: >-
+            Server=tcp:${{ env.APP_NAME }}-sql.database.windows.net,1433;
+            Initial Catalog=appdb;
+            Persist Security Info=False;
+            User ID=${{ env.SQL_ADMIN }};
+            Password=${{ secrets.SQL_PASSWORD }};
+            MultipleActiveResultSets=False;
+            Encrypt=True;
+            TrustServerCertificate=False;
+            Connection Timeout=30;
+        run: |
+          dotnet ef database update --verbose
+
+      - name: Close temporary SQL firewall rule
+        if: always()
+        run: |
+          az sql server firewall-rule delete \
+            --resource-group $RG_NAME \
+            --server ${APP_NAME}-sql \
+            --name AllowGitHubRunner
+
+
       # Build & publish app
       - name: Restore
         run: dotnet restore
