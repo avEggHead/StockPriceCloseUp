@@ -41,7 +41,6 @@ jobs:
             -g $RG_NAME \
             -n ${APP_NAME}-plan \
             --sku F1 \
-            --is-linux false
 
           # Web App with Managed Identity
           az webapp create \
