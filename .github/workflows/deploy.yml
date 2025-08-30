@@ -1,0 +1,67 @@
+name: deploy-mvc-to-azure
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  APP_NAME: cja-mvc-demoproj    
+  RG_NAME: rg-cja-mvc-demoprog
+  LOCATION: eastus
+  SQL_ADMIN: sqladmin  
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Create RG if it doesn't exist (idempotent)
+      - name: Ensure Resource Group exists
+        run: |
+          az group create -n $RG_NAME -l $LOCATION
+
+      # Deploy infra (idempotent)
+      - name: Deploy Bicep
+        uses: azure/arm-deploy@v1
+        with:
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resourceGroupName: ${{ env.RG_NAME }}
+          template: infra/main.bicep
+          parameters: >
+            appName=${{ env.APP_NAME }}
+            location=${{ env.LOCATION }}
+            sqlAdmin=${{ env.SQL_ADMIN }}
+            sqlPassword=${{ secrets.SQL_PASSWORD }}
+            finnhubApiKey=${{ secrets.FINNHUB_API_KEY }}
+          failOnStdErr: false
+          deploymentMode: Incremental
+
+      # Build & publish app
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish --configuration Release -o ./publish
+
+      # Deploy to Web App
+      - name: Deploy Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.APP_NAME }}
+          package: ./publish
