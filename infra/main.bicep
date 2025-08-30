@@ -27,7 +27,7 @@ resource plan 'Microsoft.Web/serverfarms@2022-09-01' = {
     capacity: 1
   }
   properties: {
-    reserved: false // Windows (not Linux)
+    reserved: false // Windows
   }
 }
 
@@ -43,7 +43,6 @@ resource webApp 'Microsoft.Web/sites@2022-09-01' = {
     httpsOnly: true
     siteConfig: {
       appSettings: [
-        // App reads KV name from config, then uses DefaultAzureCredential()
         { name: 'KeyVaultName', value: '${appName}-kv' }
         { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
       ]
@@ -76,16 +75,14 @@ resource sqlDb 'Microsoft.Sql/servers/databases@2022-05-01-preview' = {
   name: 'appdb'
   parent: sqlServer
   sku: {
-    // General Purpose Serverless, Gen5, 1 vCore max (cheap demo)
-    name: 'GP_S_Gen5_1'
+    name: 'GP_S_Gen5_1' // GeneralPurpose Serverless, Gen5, 1 vCore max
     tier: 'GeneralPurpose'
     family: 'Gen5'
     capacity: 1
   }
   properties: {
-    // Auto-pause after 60 minutes of inactivity => compute = $0 while paused
-    autoPauseDelay: 60
-    minCapacity: 0.5
+    autoPauseDelay: 60              // minutes; pauses compute to $0 when idle
+    minCapacity: json('0.5')        // ✅ Bicep can’t parse 0.5 literal
     readScale: 'Disabled'
     zoneRedundant: false
   }
@@ -100,7 +97,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     sku: {
       name: 'standard'
       family: 'A'
-    },
+    }, // important comma
     enableRbacAuthorization: true
     softDeleteRetentionInDays: 7
     enabledForDeployment: false
@@ -132,16 +129,16 @@ resource kvRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
+// ========= Derive SQL FQDN (avoid hardcoded env URLs) =========
+var sqlFqdn = reference(sqlServer.id, '2022-05-01-preview', 'Full').fullyQualifiedDomainName
+
 // ========= Web App connection string (parent syntax) =========
-// (Linter prefers this over "${webApp.name}/connectionstrings")
 resource webAppConnectionStrings 'Microsoft.Web/sites/config@2022-09-01' = {
   name: 'connectionstrings'
   parent: webApp
   properties: {
     DefaultConnection: {
-      // NOTE: The linter warns to avoid hardcoding "database.windows.net"
-      // For public Azure this is fine for a demo. You can ignore that warning.
-      value: 'Server=tcp=${sqlServer.name}.database.windows.net,1433;Initial Catalog=${sqlDb.name};Persist Security Info=False;User ID=${sqlAdmin};Password=${sqlPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
+      value: 'Server=tcp=${sqlFqdn},1433;Initial Catalog=${sqlDb.name};Persist Security Info=False;User ID=${sqlAdmin};Password=${sqlPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
       type: 'SQLAzure'
     }
   }
