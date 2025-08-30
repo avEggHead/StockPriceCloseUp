@@ -63,7 +63,9 @@ jobs:
             -g $RG_NAME \
             -s ${APP_NAME}-sql \
             -n appdb \
-            --service-objective GP_S_Gen5_1 \
+            -e GeneralPurpose \
+            -f Gen5 \
+            -c 1 \
             --compute-model Serverless \
             --auto-pause-delay 60
 
