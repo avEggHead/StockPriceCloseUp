@@ -1,14 +1,14 @@
-name: deploy-mvc-to-azure
+﻿name: deploy-mvc-to-azure
 
 on:
   push:
     branches: [ main ]
 
 env:
-  APP_NAME: cja-mvc-demoproj    
+  APP_NAME: cja-mvc-demoproj       # must be globally unique
   RG_NAME: rg-cja-mvc-demoprog
   LOCATION: eastus
-  SQL_ADMIN: sqladmin  
+  SQL_ADMIN: sqladmin
 
 jobs:
   deploy:
@@ -28,49 +28,26 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Upgrade Azure CLI (workaround)
-        run: az upgrade --yes || true
-
-      # Create RG if it doesn't exist (idempotent)
       - name: Ensure Resource Group exists
-        run: |
-          az group create -n $RG_NAME -l $LOCATION
+        run: az group create -n $RG_NAME -l $LOCATION --only-show-errors -o none
 
-      # Deploy infra (idempotent)
-      - name: Deploy Bicep (azure/cli)
-        uses: azure/cli@v2
+      # Deploy infrastructure using Bicep (unique deployment name avoids “response consumed” bug)
+      - name: Deploy Bicep
+        uses: azure/arm-deploy@v1
         with:
-          inlineScript: |
-            set -euo pipefail
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resourceGroupName: ${{ env.RG_NAME }}
+          template: infra/main.bicep
+          parameters: >
+            appName=${{ env.APP_NAME }}
+            location=${{ env.LOCATION }}
+            sqlAdmin=${{ env.SQL_ADMIN }}
+            sqlPassword=${{ secrets.SQL_PASSWORD }}
+            finnhubApiKey=${{ secrets.FINNHUB_API_KEY }}
+          deploymentName: deploy-${{ github.run_id }}
+          failOnStdErr: false
 
-            # Set subscription and quiet defaults (no formatted output)
-            az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-            az config set core.output=none core.only_show_errors=yes --local
-
-            # Make sure bicep is ready
-            az bicep install >/dev/null 2>&1 || true
-            az bicep upgrade  >/dev/null 2>&1 || true
-
-            # Ensure RG exists (suppress output)
-            az group create \
-              --name "${{ env.RG_NAME }}" \
-              --location "${{ env.LOCATION }}" \
-              --only-show-errors -o none
-
-            # Deploy Bicep (suppress output)
-            az deployment group create \
-              --resource-group "${{ env.RG_NAME }}" \
-              --name "deploy-${GITHUB_RUN_ID}" \
-              --template-file infra/main.bicep \
-              --parameters appName="${{ env.APP_NAME }}" \
-                           location="${{ env.LOCATION }}" \
-                           sqlAdmin="${{ env.SQL_ADMIN }}" \
-                           sqlPassword='${{ secrets.SQL_PASSWORD }}' \
-                           finnhubApiKey='${{ secrets.FINNHUB_API_KEY }}' \
-              --only-show-errors -o none
-
-
-      # EF Migration against the Azure SQL
+      # ---- EF Core migrations against Azure SQL ----
       - name: Get runner public IP
         id: ip
         run: echo "ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
@@ -89,23 +66,29 @@ jobs:
           dotnet tool install --global dotnet-ef
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
+      # Resolve SQL server FQDN dynamically (avoids hardcoded env URL)
       - name: Resolve SQL FQDN
         id: fqdn
-        run: echo "fqdn=$(az sql server show -g $RG_NAME -n ${APP_NAME}-sql --query fullyQualifiedDomainName -o tsv)" >> $GITHUB_OUTPUT
+        run: |
+          fqdn=$(az sql server show \
+            --resource-group $RG_NAME \
+            --name ${APP_NAME}-sql \
+            --query fullyQualifiedDomainName -o tsv)
+          echo "fqdn=$fqdn" >> $GITHUB_OUTPUT
 
       - name: Run EF Core migrations (Database.Update)
         working-directory: src/WebMvc
         env:
-            ConnectionStrings__DefaultConnection: >-
-              Server=tcp:${{ steps.fqdn.outputs.fqdn }},1433;
-              Initial Catalog=appdb;
-              Persist Security Info=False;
-              User ID=${{ env.SQL_ADMIN }};
-              Password=${{ secrets.SQL_PASSWORD }};
-              MultipleActiveResultSets=False;
-              Encrypt=True;
-              TrustServerCertificate=False;
-              Connection Timeout=30;
+          ConnectionStrings__DefaultConnection: >-
+            Server=tcp:${{ steps.fqdn.outputs.fqdn }},1433;
+            Initial Catalog=appdb;
+            Persist Security Info=False;
+            User ID=${{ env.SQL_ADMIN }};
+            Password=${{ secrets.SQL_PASSWORD }};
+            MultipleActiveResultSets=False;
+            Encrypt=True;
+            TrustServerCertificate=False;
+            Connection Timeout=30;
         run: dotnet ef database update --verbose
 
       - name: Close temporary SQL firewall rule
@@ -116,8 +99,7 @@ jobs:
             --server ${APP_NAME}-sql \
             --name AllowGitHubRunner
 
-
-      # Build & publish app
+      # ---- Build & deploy app ----
       - name: Restore
         run: dotnet restore
 
@@ -127,7 +109,6 @@ jobs:
       - name: Publish
         run: dotnet publish --configuration Release -o ./publish
 
-      # Deploy to Web App
       - name: Deploy Web App
         uses: azure/webapps-deploy@v2
         with:
