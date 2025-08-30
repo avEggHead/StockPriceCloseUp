@@ -81,8 +81,8 @@ resource sqlDb 'Microsoft.Sql/servers/databases@2022-05-01-preview' = {
     capacity: 1
   }
   properties: {
-    autoPauseDelay: 60              // minutes; pauses compute to $0 when idle
-    minCapacity: json('0.5')        // ✅ Bicep can’t parse 0.5 literal
+    // Auto-pause after 60 minutes of inactivity => compute = $0 while paused
+    autoPauseDelay: 60
     readScale: 'Disabled'
     zoneRedundant: false
   }
@@ -97,7 +97,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     sku: {
       name: 'standard'
       family: 'A'
-    }, // important comma
+    } // <-- no trailing comma here
     enableRbacAuthorization: true
     softDeleteRetentionInDays: 7
     enabledForDeployment: false
@@ -129,15 +129,16 @@ resource kvRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
-// ========= Derive SQL FQDN (avoid hardcoded env URLs) =========
-var sqlFqdn = reference(sqlServer.id, '2022-05-01-preview', 'Full').fullyQualifiedDomainName
+// ========= Use symbolic resource property (no 'reference(...)') =========
+var sqlFqdn = sqlServer.properties.fullyQualifiedDomainName
 
-// ========= Web App connection string (parent syntax) =========
+// ========= Web App connection string (child with parent:) =========
 resource webAppConnectionStrings 'Microsoft.Web/sites/config@2022-09-01' = {
   name: 'connectionstrings'
   parent: webApp
   properties: {
     DefaultConnection: {
+      // No hardcoded "database.windows.net"; use server FQDN
       value: 'Server=tcp=${sqlFqdn},1433;Initial Catalog=${sqlDb.name};Persist Security Info=False;User ID=${sqlAdmin};Password=${sqlPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
       type: 'SQLAzure'
     }
