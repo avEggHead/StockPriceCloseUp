@@ -6,8 +6,7 @@ on:
 
 env:
   APP_NAME: cja-mvc-demoproj       # must be globally unique
-  RG_NAME: rg-cja-mvc-demoproj
-  LOCATION: eastus
+  LOCATION: eastus2                # 👈 change if East US is blocked
   SQL_ADMIN: sqladmin
 
 jobs:
@@ -28,19 +27,21 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # Dynamically build RG name from APP_NAME + LOCATION
+      - name: Set RG name
+        run: echo "RG_NAME=rg-${APP_NAME}-${LOCATION}" >> $GITHUB_ENV
+
       # ---- Provision Azure Resources (CLI only) ----
       - name: Provision Azure Resources
         run: |
           set -e
-
-          # RG
           az group create -n $RG_NAME -l $LOCATION --only-show-errors -o none
 
           # App Service Plan (Free, Windows)
           az appservice plan create \
             -g $RG_NAME \
             -n ${APP_NAME}-plan \
-            --sku F1 \
+            --sku F1
 
           # Web App with Managed Identity
           az webapp create \
@@ -121,7 +122,7 @@ jobs:
         working-directory: src/WebMvc
         env:
           ConnectionStrings__DefaultConnection: >-
-            Server=tcp:${{ env.APP_NAME }}-sql.database.windows.net,1433;
+            Server=tcp:${APP_NAME}-sql.database.windows.net,1433;
             Initial Catalog=appdb;
             Persist Security Info=False;
             User ID=${{ env.SQL_ADMIN }};
@@ -155,3 +156,15 @@ jobs:
         with:
           app-name: ${{ env.APP_NAME }}
           package: ./publish
+
+      # ---- Echo outputs to log for convenience ----
+      - name: Show deployment outputs
+        run: |
+          fqdn=$(az sql server show -g $RG_NAME -n ${APP_NAME}-sql --query fullyQualifiedDomainName -o tsv)
+          echo ""
+          echo "🌐 Web App URL:    https://${APP_NAME}.azurewebsites.net"
+          echo "🗄️  SQL Server:    ${APP_NAME}-sql"
+          echo "🔗 SQL FQDN:       $fqdn"
+          echo "📚 Database:       appdb"
+          echo "🔑 Key Vault:      ${APP_NAME}-kv"
+          echo ""
