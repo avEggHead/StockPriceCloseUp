@@ -6,7 +6,7 @@ on:
 
 env:
   APP_NAME: cja-mvc-demoproj       # must be globally unique
-  RG_NAME: rg-cja-mvc-demoprog
+  RG_NAME: rg-cja-mvc-demoproj
   LOCATION: eastus
   SQL_ADMIN: sqladmin
 
