@@ -28,6 +28,9 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Upgrade Azure CLI (workaround)
+        run: az upgrade --yes || true
+
       # Create RG if it doesn't exist (idempotent)
       - name: Ensure Resource Group exists
         run: |
@@ -55,11 +58,8 @@ jobs:
                 --resource-group "$RG_NAME" \
                 --name "deploy-$GITHUB_RUN_ID" \
                 --template-file infra/main.bicep \
-                --parameters appName="$APP_NAME" \
-                            location="$LOCATION" \
-                            sqlAdmin="$SQL_ADMIN" \
-                            sqlPassword="$SQL_PASSWORD" \
-                            finnhubApiKey="$FINNHUB_API_KEY"
+                --parameters appName="$APP_NAME" location="$LOCATION" sqlAdmin="$SQL_ADMIN" sqlPassword="$SQL_PASSWORD" finnhubApiKey="$FINNHUB_API_KEY" \
+                --only-show-errors -o none 
 
       # EF Migration against the Azure SQL
       - name: Get runner public IP
@@ -80,22 +80,24 @@ jobs:
           dotnet tool install --global dotnet-ef
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
+      - name: Resolve SQL FQDN
+        id: fqdn
+        run: echo "fqdn=$(az sql server show -g $RG_NAME -n ${APP_NAME}-sql --query fullyQualifiedDomainName -o tsv)" >> $GITHUB_OUTPUT
+
       - name: Run EF Core migrations (Database.Update)
         working-directory: src/WebMvc
         env:
-          # Build the same connection string we injected via Bicep
-          ConnectionStrings__DefaultConnection: >-
-            Server=tcp:${{ env.APP_NAME }}-sql.database.windows.net,1433;
-            Initial Catalog=appdb;
-            Persist Security Info=False;
-            User ID=${{ env.SQL_ADMIN }};
-            Password=${{ secrets.SQL_PASSWORD }};
-            MultipleActiveResultSets=False;
-            Encrypt=True;
-            TrustServerCertificate=False;
-            Connection Timeout=30;
-        run: |
-          dotnet ef database update --verbose
+            ConnectionStrings__DefaultConnection: >-
+              Server=tcp:${{ steps.fqdn.outputs.fqdn }},1433;
+              Initial Catalog=appdb;
+              Persist Security Info=False;
+              User ID=${{ env.SQL_ADMIN }};
+              Password=${{ secrets.SQL_PASSWORD }};
+              MultipleActiveResultSets=False;
+              Encrypt=True;
+              TrustServerCertificate=False;
+              Connection Timeout=30;
+        run: dotnet ef database update --verbose
 
       - name: Close temporary SQL firewall rule
         if: always()
