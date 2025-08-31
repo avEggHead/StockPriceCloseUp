@@ -13,10 +13,24 @@
                 </div>
 
                 <div class="card-body p-4">
+                    @if (ViewBag.Error != null)
+                    {
+                        <div class="alert alert-warning text-center mb-3">
+                            @ViewBag.Error
+                        </div>
+                    }
+
                     <form asp-controller="Stocks" asp-action="Lookup" method="post" class="row g-3">
                         <div class="col-md-9">
-                            <input type="text" id="symbol" name="symbol" class="form-control form-control-lg"
-                                   placeholder="Enter stock symbol (e.g., AAPL)" required />
+                            <input type="text" id="symbol" name="symbol"
+                                   class="form-control form-control-lg"
+                                   placeholder="Enter stock symbol (e.g., AAPL)"
+                                   list="symbolSuggestions"
+                                   required />
+                            <small class="form-text text-muted">
+                                Search for a <strong>stock ticker</strong> (ETFs OK, mutual funds not supported).
+                            </small>
+                            <datalist id="symbolSuggestions"></datalist>
                         </div>
                         <div class="col-md-3 d-grid">
                             <button type="submit" class="btn btn-lg btn-primary shadow-sm"
@@ -46,3 +60,27 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        const input = document.getElementById('symbol');
+        const datalist = document.getElementById('symbolSuggestions');
+
+        input.addEventListener('input', async () => {
+            const query = input.value.trim();
+            if (query.length < 2) return;
+
+            const resp = await fetch(`/Stocks/SearchSymbols?q=${encodeURIComponent(query)}`);
+            if (!resp.ok) return;
+
+            const results = await resp.json();
+            datalist.innerHTML = "";
+            results.forEach(s => {
+                const option = document.createElement("option");
+                option.value = s.symbol;
+                option.label = s.description;
+                datalist.appendChild(option);
+            });
+        });
+    </script>
+}
