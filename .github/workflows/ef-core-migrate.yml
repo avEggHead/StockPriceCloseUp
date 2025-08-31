@@ -43,12 +43,22 @@ jobs:
           dotnet tool install --global dotnet-ef
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      # 👇 Correct EF command for your repo structure
+      # 👇 Get SQL Server FQDN dynamically
+      - name: Get SQL FQDN
+        id: sql
+        run: |
+          fqdn=$(az sql server show -g $RG_NAME -n ${APP_NAME}-sql --query fullyQualifiedDomainName -o tsv)
+          echo "fqdn=$fqdn" >> $GITHUB_OUTPUT
+          # Log connection string (without password for safety)
+          echo "Using connection string:"
+          echo "Server=tcp:$fqdn,1433;Initial Catalog=appdb;User ID=$SQL_ADMIN;Password=***;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+
+      # 👇 Run migrations with dynamic FQDN
       - name: Run EF Core migrations (Database.Update)
         run: dotnet ef database update --project StockPriceCloseUp --startup-project StockPriceCloseUp --verbose
         env:
           ConnectionStrings__DefaultConnection: >-
-            Server=tcp:${APP_NAME}-sql.database.windows.net,1433;
+            Server=tcp:${{ steps.sql.outputs.fqdn }},1433;
             Initial Catalog=appdb;
             User ID=${{ env.SQL_ADMIN }};
             Password=${{ secrets.SQL_PASSWORD }};
