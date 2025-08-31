@@ -64,12 +64,17 @@
                                     $@quote.Current
                                     @if (isUp)
                                     {
-                                        <span class="text-success ms-2">▲ @change.ToString("0.##")%</span>
+                                        <span class="badge bg-success ms-2">
+                                            ▲ @change.ToString("0.##")%
+                                        </span>
                                     }
                                     else
                                     {
-                                        <span class="text-danger ms-2">▼ @change.ToString("0.##")%</span>
+                                        <span class="badge bg-danger ms-2">
+                                            ▼ @change.ToString("0.##")%
+                                        </span>
                                     }
+
                                 </p>
                             </div>
                         </div>
