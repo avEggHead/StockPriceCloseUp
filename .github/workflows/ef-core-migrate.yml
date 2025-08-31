@@ -43,6 +43,16 @@ jobs:
           dotnet tool install --global dotnet-ef
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
+      - name: Debug – show repo structure
+        run: |
+          echo "Current working directory:"
+          pwd
+          echo "Contents of repo root:"
+          ls -la
+          echo "Contents of StockPriceCloseUp:"
+          ls -la StockPriceCloseUp || true
+          echo "Contents of StockPriceCloseUp/StockPriceCloseUp:"
+          ls -la StockPriceCloseUp/StockPriceCloseUp || true
       # 👇 Run migrations from the correct folder
       - name: Run EF Core migrations (Database.Update)
         working-directory: StockPriceCloseUp/StockPriceCloseUp
