@@ -1,6 +1,7 @@
 using Azure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using StockPriceCloseUp.Data;
 
 namespace StockPriceCloseUp
@@ -25,7 +26,11 @@ namespace StockPriceCloseUp
                 builder.Configuration.AddAzureKeyVault(kvUri, new DefaultAzureCredential());
             }
 
-            builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
+            builder.Services.AddDefaultIdentity<IdentityUser>(options =>
+            {
+                options.SignIn.RequireConfirmedAccount = false;
+                options.User.RequireUniqueEmail = false;
+            })
                 .AddEntityFrameworkStores<ApplicationDbContext>();
             builder.Services.AddControllersWithViews();
 
