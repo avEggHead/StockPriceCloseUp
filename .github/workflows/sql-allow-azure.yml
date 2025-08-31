@@ -1,0 +1,26 @@
+name: sql-allow-azure
+
+on:
+  workflow_dispatch:
+
+env:
+  APP_NAME: cja-mvc-demoproj
+  RG_NAME: rg-cja-mvc-demoproj-eastus2
+
+jobs:
+  allow-azure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Allow all Azure services
+        run: |
+          az sql server firewall-rule create \
+            -g $RG_NAME \
+            -s ${APP_NAME}-sql \
+            -n AllowAzureServices \
+            --start-ip-address 0.0.0.0 \
+            --end-ip-address 0.0.0.0
