@@ -1,4 +1,4 @@
-name: efcore-migrations
+﻿name: efcore-migrations
 
 on:
   workflow_dispatch:
@@ -43,8 +43,10 @@ jobs:
           dotnet tool install --global dotnet-ef
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      - name: Run EF Core migrations
+      # 👇 Run migrations from the correct folder
+      - name: Run EF Core migrations (Database.Update)
         working-directory: StockPriceCloseUp
+        run: dotnet ef database update --project StockPriceCloseUp --startup-project StockPriceCloseUp --verbose
         env:
           ConnectionStrings__DefaultConnection: >-
             Server=tcp:${APP_NAME}-sql.database.windows.net,1433;
@@ -54,7 +56,6 @@ jobs:
             Encrypt=True;
             TrustServerCertificate=False;
             Connection Timeout=30;
-        run: dotnet ef database update --verbose
 
       - name: Close temporary SQL firewall rule
         if: always()
