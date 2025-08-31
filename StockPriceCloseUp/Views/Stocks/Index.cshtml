@@ -13,10 +13,24 @@
                 </div>
 
                 <div class="card-body p-4">
+                    @if (ViewBag.Error != null)
+                    {
+                        <div class="alert alert-warning text-center mb-3">
+                            @ViewBag.Error
+                        </div>
+                    }
+
                     <form asp-controller="Stocks" asp-action="Lookup" method="post" class="row g-3">
                         <div class="col-md-9">
-                            <input type="text" id="symbol" name="symbol" class="form-control form-control-lg"
-                                   placeholder="Enter stock symbol (e.g., AAPL)" required />
+                            <input type="text" id="symbol" name="symbol"
+                                   class="form-control form-control-lg"
+                                   placeholder="Enter stock symbol (e.g., AAPL)"
+                                   list="symbolSuggestions"
+                                   required />
+                            <small class="form-text text-muted">
+                                Search for a <strong>stock ticker</strong> (ETFs OK, mutual funds not supported).
+                            </small>
+                            <datalist id="symbolSuggestions"></datalist>
                         </div>
                         <div class="col-md-3 d-grid">
                             <button type="submit" class="btn btn-lg btn-primary shadow-sm"
@@ -28,21 +42,86 @@
                 </div>
             </div>
 
-            @if (ViewBag.Price != null)
+            @if (ViewBag.Quote != null)
             {
+                var quote = (StockQuote)ViewBag.Quote;
+                bool isUp = quote.Current >= quote.Open;
+                var change = quote.PercentChangeFromOpen;
+
                 <div class="card mt-4 shadow border-0 rounded-4">
                     <div class="card-body text-center">
+
                         <h3 class="fw-bold">@ViewBag.Symbol</h3>
-                        <p class="display-6 fw-semibold">
-                            $@ViewBag.Price
-                        </p>
-                        <span class="badge rounded-pill bg-success px-3 py-2">
-                            ✅ Latest Price Retrieved
-                        </span>
+
+                        <div class="d-flex justify-content-center align-items-center gap-4">
+                            <div>
+                                <p class="text-muted mb-1">Open</p>
+                                <p class="h4 fw-semibold">$@quote.Open</p>
+                            </div>
+                            <div>
+                                <p class="text-muted mb-1">Current</p>
+                                <p class="h2 fw-bold mb-0">
+                                    $@quote.Current
+                                    @if (isUp)
+                                    {
+                                        <span class="badge bg-success ms-2">
+                                            ▲ @change.ToString("0.##")%
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger ms-2">
+                                            ▼ @change.ToString("0.##")%
+                                        </span>
+                                    }
+
+                                </p>
+                            </div>
+                        </div>
+
+                        <hr />
+
+                        <div class="row text-muted small">
+                            <div class="col">
+                                <strong>High:</strong> $@quote.High
+                            </div>
+                            <div class="col">
+                                <strong>Low:</strong> $@quote.Low
+                            </div>
+                            <div class="col">
+                                <strong>Prev Close:</strong> $@quote.PreviousClose
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             }
 
+
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        const input = document.getElementById('symbol');
+        const datalist = document.getElementById('symbolSuggestions');
+
+        input.addEventListener('input', async () => {
+            const query = input.value.trim();
+            if (query.length < 2) return;
+
+            const resp = await fetch(`/Stocks/SearchSymbols?q=${encodeURIComponent(query)}`);
+            if (!resp.ok) return;
+
+            const results = await resp.json();
+            datalist.innerHTML = "";
+            results.forEach(s => {
+                const option = document.createElement("option");
+                option.value = s.symbol;
+                option.label = s.description;
+                datalist.appendChild(option);
+            });
+        });
+    </script>
+}

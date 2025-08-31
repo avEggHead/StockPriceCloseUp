@@ -5,8 +5,8 @@
 <div class="container text-center mt-5">
     @if (User.Identity?.IsAuthenticated ?? false)
     {
-        <h2>Welcome back, @User.Identity.Name!</h2>
-        <p class="lead">Ready to check stock prices?</p>
+        <h2>Welcome @User.Identity.Name!</h2>
+        <p class="lead">In the menu click on the StockPrice Lookup link to find a stock price.</p>
     }
     else
     {
