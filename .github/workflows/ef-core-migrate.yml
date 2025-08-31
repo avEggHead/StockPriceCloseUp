@@ -44,7 +44,7 @@ jobs:
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
       - name: Run EF Core migrations
-        working-directory: src/WebMvc
+        working-directory: StockPriceCloseUp
         env:
           ConnectionStrings__DefaultConnection: >-
             Server=tcp:${APP_NAME}-sql.database.windows.net,1433;
