@@ -1,22 +1,92 @@
+/* Use fun Google Font everywhere */
+body, h1, h2, h3, h4, h5, h6, .navbar, .btn, .form-control {
+    font-family: 'Sitka Text', sans-serif;
+}
+
+/* Gradient background for the whole page */
 html {
-  font-size: 14px;
-}
-
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
-}
-
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
-html {
-  position: relative;
-  min-height: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #ffffff19, #11ff005e);
 }
 
 body {
-  margin-bottom: 60px;
+    min-height: 100%;
+    background: transparent; /* let html gradient show through */
+    color: #222;
 }
+
+/* Navbar */
+.navbar {
+    background: linear-gradient(90deg, #FF6B6B, #FFD93D);
+    font-weight: 600;
+}
+
+    .navbar .nav-link {
+        color: #fff !important;
+        margin-right: 1rem;
+    }
+
+        .navbar .nav-link:hover {
+            color: #222 !important;
+        }
+
+/* Cards for stock lookup results */
+.card {
+    border-radius: 12px;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+/* Buttons */
+.btn-primary {
+    background: linear-gradient(90deg, #5563DE, #74ABE2);
+    border: none;
+    font-weight: 600;
+    transition: transform 0.1s ease-in-out;
+}
+
+    .btn-primary:hover {
+        transform: scale(1.05);
+    }
+
+/* Form fields */
+.form-control {
+    border-radius: 8px;
+}
+
+.arrow-flash {
+    position: absolute;
+    top: 50%;
+    right: -.5rem; /* sits just to the right of the link */
+    transform: translateY(-50%);
+    font-size: 1.25rem;
+    color: #FF6B6B;
+    animation: flash 1s infinite, bounce 1s infinite;
+}
+
+/* Flashing effect */
+@keyframes flash {
+    0%, 50%, 100% {
+        opacity: 1;
+    }
+
+    25%, 75% {
+        opacity: 0;
+    }
+}
+
+/* Bouncing effect (horizontal wobble) */
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(-50%) translateX(0);
+    }
+
+    50% {
+        transform: translateY(-50%) translateX(-4px);
+    }
+}
+
+/*@media (max-width: 991.98px) {
+    .arrow-flash {
+        display: none;
+    }
+}*/
