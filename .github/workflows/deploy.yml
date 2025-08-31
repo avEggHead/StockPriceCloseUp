@@ -74,7 +74,6 @@ jobs:
             -g $RG_NAME \
             -n ${APP_NAME}-kv \
             -l $LOCATION \
-            --enable-rbac-authorization true
 
           az keyvault secret set \
             --vault-name ${APP_NAME}-kv \
