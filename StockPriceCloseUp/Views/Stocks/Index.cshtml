@@ -2,17 +2,47 @@
     ViewData["Title"] = "Stock Lookup";
 }
 
-<h2>Stock Lookup</h2>
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
 
-<form asp-controller="Stocks" asp-action="Lookup" method="post">
-    <div>
-        <label for="symbol">Enter Stock Symbol:</label>
-        <input type="text" id="symbol" name="symbol" />
-        <button type="submit">Get Price</button>
+            <div class="card shadow-lg border-0 rounded-4">
+                <div class="card-header text-center bg-gradient"
+                     style="background: linear-gradient(135deg, #6EE7B7, #3B82F6); color: white;">
+                    <h2 class="mb-0">Stock Lookup</h2>
+                </div>
+
+                <div class="card-body p-4">
+                    <form asp-controller="Stocks" asp-action="Lookup" method="post" class="row g-3">
+                        <div class="col-md-9">
+                            <input type="text" id="symbol" name="symbol" class="form-control form-control-lg"
+                                   placeholder="Enter stock symbol (e.g., AAPL)" required />
+                        </div>
+                        <div class="col-md-3 d-grid">
+                            <button type="submit" class="btn btn-lg btn-primary shadow-sm"
+                                    style="background: linear-gradient(135deg, #F97316, #EC4899); border: none;">
+                                🔍 Lookup
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            @if (ViewBag.Price != null)
+            {
+                <div class="card mt-4 shadow border-0 rounded-4">
+                    <div class="card-body text-center">
+                        <h3 class="fw-bold">@ViewBag.Symbol</h3>
+                        <p class="display-6 fw-semibold">
+                            $@ViewBag.Price
+                        </p>
+                        <span class="badge rounded-pill bg-success px-3 py-2">
+                            ✅ Latest Price Retrieved
+                        </span>
+                    </div>
+                </div>
+            }
+
+        </div>
     </div>
-</form>
-
-@if (ViewBag.Price != null)
-{
-    <p>Price for @ViewBag.Symbol: $@ViewBag.Price</p>
-}
+</div>
