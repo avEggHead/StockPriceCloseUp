@@ -43,20 +43,9 @@ jobs:
           dotnet tool install --global dotnet-ef
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      - name: Debug – show repo structure
-        run: |
-          echo "Current working directory:"
-          pwd
-          echo "Contents of repo root:"
-          ls -la
-          echo "Contents of StockPriceCloseUp:"
-          ls -la StockPriceCloseUp || true
-          echo "Contents of StockPriceCloseUp/StockPriceCloseUp:"
-          ls -la StockPriceCloseUp/StockPriceCloseUp || true
-      # 👇 Run migrations from the correct folder
+      # 👇 Correct EF command for your repo structure
       - name: Run EF Core migrations (Database.Update)
-        working-directory: StockPriceCloseUp/StockPriceCloseUp
-        run: dotnet ef database update --verbose
+        run: dotnet ef database update --project StockPriceCloseUp --startup-project StockPriceCloseUp --verbose
         env:
           ConnectionStrings__DefaultConnection: >-
             Server=tcp:${APP_NAME}-sql.database.windows.net,1433;
