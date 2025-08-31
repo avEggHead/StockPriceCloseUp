@@ -1,9 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Net.Http;
 using System.Text.Json;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 
 namespace MyMvcApp.Controllers
 {
@@ -23,6 +20,7 @@ namespace MyMvcApp.Controllers
         {
             return View();
         }
+
         [HttpPost]
         public async Task<IActionResult> Lookup(string symbol)
         {
@@ -40,17 +38,25 @@ namespace MyMvcApp.Controllers
                 var response = await client.GetStringAsync(url);
 
                 using var doc = JsonDocument.Parse(response);
-                var currentPrice = doc.RootElement.GetProperty("c").GetDecimal();
 
-                // Finnhub returns 0 if symbol not found or no price available
-                if (currentPrice == 0)
+                var quote = new StockQuote
+                {
+                    Current = doc.RootElement.GetProperty("c").GetDecimal(),
+                    Open = doc.RootElement.GetProperty("o").GetDecimal(),
+                    High = doc.RootElement.GetProperty("h").GetDecimal(),
+                    Low = doc.RootElement.GetProperty("l").GetDecimal(),
+                    PreviousClose = doc.RootElement.GetProperty("pc").GetDecimal(),
+                    Timestamp = doc.RootElement.GetProperty("t").GetInt64()
+                };
+
+                if (quote.Current == 0)
                 {
                     ViewBag.Error = $"Symbol '{symbol.ToUpper()}' not found or not supported.";
                     return View("Index");
                 }
 
                 ViewBag.Symbol = symbol.ToUpper();
-                ViewBag.Price = currentPrice;
+                ViewBag.Quote = quote;
             }
             catch
             {
