@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using StockPriceCloseUp.Data;
+using StockPriceCloseUp.Manager;
 
 namespace StockPriceCloseUp
 {
@@ -33,6 +34,8 @@ namespace StockPriceCloseUp
             })
                 .AddEntityFrameworkStores<ApplicationDbContext>();
             builder.Services.AddControllersWithViews();
+
+            builder.Services.AddScoped<IStockManager, StockManager>();
 
             builder.Services.AddHttpClient();
 
