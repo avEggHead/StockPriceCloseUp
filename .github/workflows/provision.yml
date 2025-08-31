@@ -1,0 +1,28 @@
+name: provision-infra
+
+on:
+  workflow_dispatch:
+
+env:
+  APP_NAME: cja-mvc-demoproj
+  RG_NAME: rg-cja-mvc-demoproj-eastus2
+  LOCATION: eastus2
+  SQL_ADMIN: sqladmin
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Provision Azure Resources
+        run: |
+          az group create -n $RG_NAME -l $LOCATION --only-show-errors -o none
+          az appservice plan create -g $RG_NAME -n ${APP_NAME}-plan --sku F1
+          az webapp create -g $RG_NAME -p ${APP_NAME}-plan -n $APP_NAME --runtime "DOTNET:8" --assign-identity
+          az sql server create -g $RG_NAME -n ${APP_NAME}-sql -u $SQL_ADMIN -p "${{ secrets.SQL_PASSWORD }}" -l $LOCATION
+          az sql db create -g $RG_NAME -s ${APP_NAME}-sql -n appdb -e GeneralPurpose -f Gen5 -c 1 --compute-model Serverless --auto-pause-delay 60
+          az keyvault create -g $RG_NAME -n ${APP_NAME}-kv -l $LOCATION

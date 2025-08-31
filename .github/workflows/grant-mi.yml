@@ -1,0 +1,31 @@
+name: grant-webapp-mi
+
+on:
+  workflow_dispatch:
+
+env:
+  APP_NAME: cja-mvc-demoproj
+  RG_NAME: rg-cja-mvc-demoproj-eastus2
+  SQL_ADMIN: sqladmin
+
+jobs:
+  grant-mi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Grant Web App MI access to secrets
+        run: |
+          principalId=$(az webapp identity show -g $RG_NAME -n $APP_NAME --query principalId -o tsv)
+          az keyvault set-policy -g $RG_NAME -n ${APP_NAME}-kv --object-id $principalId --secret-permissions get list
+
+          az webapp config appsettings set -g $RG_NAME -n $APP_NAME \
+            --settings KeyVaultName=${APP_NAME}-kv ASPNETCORE_ENVIRONMENT=Production
+
+          fqdn=$(az sql server show -g $RG_NAME -n ${APP_NAME}-sql --query fullyQualifiedDomainName -o tsv)
+          az webapp config connection-string set -g $RG_NAME -n $APP_NAME \
+            --settings DefaultConnection="Server=tcp:$fqdn,1433;Initial Catalog=appdb;Persist Security Info=False;User ID=$SQL_ADMIN;Password=${{ secrets.SQL_PASSWORD }};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;" \
+            --connection-string-type SQLAzure
