@@ -17,7 +17,6 @@ namespace StockPriceCloseUp.Manager
         {
             _httpClientFactory = httpClientFactory;
             _finnhubApiKey = config["Finnhub-ApiKey"];
-            _finnhubApiKey = "d2pk6dpr01qnf9nlehi0d2pk6dpr01qnf9nlehig";
         }
 
         public async Task<StockQuote?> GetQuoteAsync(string symbol)
