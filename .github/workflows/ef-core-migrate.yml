@@ -45,8 +45,8 @@ jobs:
 
       # 👇 Run migrations from the correct folder
       - name: Run EF Core migrations (Database.Update)
-        working-directory: StockPriceCloseUp
-        run: dotnet ef database update --project StockPriceCloseUp --startup-project StockPriceCloseUp --verbose
+        working-directory: StockPriceCloseUp/StockPriceCloseUp
+        run: dotnet ef database update --verbose
         env:
           ConnectionStrings__DefaultConnection: >-
             Server=tcp:${APP_NAME}-sql.database.windows.net,1433;
