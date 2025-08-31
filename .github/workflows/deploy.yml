@@ -6,7 +6,7 @@ on:
 
 env:
   APP_NAME: cja-mvc-demoproj       # must be globally unique
-  LOCATION: eastus2                # 👈 change if East US is blocked
+  LOCATION: eastus2                # 👈 change if region blocked
   SQL_ADMIN: sqladmin
 
 jobs:
@@ -69,31 +69,51 @@ jobs:
             --compute-model Serverless \
             --auto-pause-delay 60
 
-          # Key Vault + secret
+          # Key Vault
           az keyvault create \
             -g $RG_NAME \
             -n ${APP_NAME}-kv \
             -l $LOCATION \
+            --enable-rbac-authorization true
 
+      # ---- Grant pipeline SP rights to Key Vault ----
+      - name: Grant pipeline SP Key Vault Administrator
+        run: |
+          kvId=$(az keyvault show -g $RG_NAME -n ${APP_NAME}-kv --query id -o tsv)
+          spClientId=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r .clientId)
+          spObjectId=$(az ad sp show --id $spClientId --query id -o tsv)
+
+          az role assignment create \
+            --assignee $spObjectId \
+            --role "Key Vault Administrator" \
+            --scope $kvId
+
+          echo "Waiting 60s for Key Vault role assignment to propagate..."
+          sleep 60
+
+      # ---- Add Finnhub secret ----
+      - name: Add Finnhub secret to Key Vault
+        run: |
           az keyvault secret set \
             --vault-name ${APP_NAME}-kv \
             --name Finnhub-ApiKey \
             --value "${{ secrets.FINNHUB_API_KEY }}"
 
-          # Assign Web App identity permission to read secrets
+      # ---- Grant Web App MI access to secrets ----
+      - name: Grant Web App MI Key Vault Secrets User
+        run: |
           principalId=$(az webapp identity show -g $RG_NAME -n $APP_NAME --query principalId -o tsv)
           kvId=$(az keyvault show -g $RG_NAME -n ${APP_NAME}-kv --query id -o tsv)
+
           az role assignment create \
             --assignee $principalId \
             --role "Key Vault Secrets User" \
             --scope $kvId
 
-          # Configure app settings
           az webapp config appsettings set \
             -g $RG_NAME -n $APP_NAME \
             --settings KeyVaultName=${APP_NAME}-kv ASPNETCORE_ENVIRONMENT=Production
 
-          # Connection string
           fqdn=$(az sql server show -g $RG_NAME -n ${APP_NAME}-sql --query fullyQualifiedDomainName -o tsv)
           az webapp config connection-string set \
             -g $RG_NAME -n $APP_NAME \
@@ -158,7 +178,7 @@ jobs:
           app-name: ${{ env.APP_NAME }}
           package: ./publish
 
-      # ---- Echo outputs to log for convenience ----
+      # ---- Echo outputs ----
       - name: Show deployment outputs
         run: |
           fqdn=$(az sql server show -g $RG_NAME -n ${APP_NAME}-sql --query fullyQualifiedDomainName -o tsv)
