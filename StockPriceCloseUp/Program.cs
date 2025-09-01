@@ -33,6 +33,15 @@ namespace StockPriceCloseUp
                 options.User.RequireUniqueEmail = false;
             })
                 .AddEntityFrameworkStores<ApplicationDbContext>();
+
+            // ✅ Configure cookie for cross-site use (React frontend)
+            builder.Services.ConfigureApplicationCookie(options =>
+            {
+                options.Cookie.SameSite = SameSiteMode.None; // allow cross-origin
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // only over HTTPS
+                options.Cookie.Domain = "cja-mvc-demoproj.azurewebsites.net"; // 👈 set correct domain
+            });
+
             builder.Services.AddControllersWithViews();
 
             builder.Services.AddScoped<IStockManager, StockManager>();
@@ -78,6 +87,7 @@ namespace StockPriceCloseUp
             // ✅ Apply CORS before auth
             app.UseCors("ConfiguredCors");
 
+            app.UseAuthentication(); // <-- include auth before authorization
             app.UseAuthorization();
 
             app.MapControllerRoute(
