@@ -48,15 +48,26 @@ namespace StockPriceCloseUp.Manager
             var response = await client.GetStringAsync(url);
             using var doc = JsonDocument.Parse(response);
 
-            return doc.RootElement.GetProperty("result")
-                .EnumerateArray()
-                .Select(x => new StockSearchResult
-                {
-                    Symbol = x.GetProperty("symbol").GetString()!,
-                    Description = x.GetProperty("description").GetString()!
-                })
+            // Step 1: get raw results array
+            var rawResults = doc.RootElement.GetProperty("result").EnumerateArray();
+
+            // Step 2: project to DTO
+            var parsed = rawResults.Select(x => new StockSearchResult
+            {
+                Symbol = x.GetProperty("symbol").GetString() ?? "",
+                Description = x.GetProperty("description").GetString() ?? ""
+            }).ToList();
+
+            // Step 3: filter out anything with a dot in the symbol
+            var filtered = parsed
+                .Where(x => !x.Symbol.Contains('.'))
                 .ToList();
+
+            return filtered;
         }
+
+
+
     }
 
     public class StockSearchResult
