@@ -1,0 +1,27 @@
+name: Add CORS Origin
+
+on:
+  workflow_dispatch:
+    inputs:
+      origin:
+        description: "Frontend origin URL to allow (e.g. https://myfrontend.com)"
+        required: true
+        type: string
+
+jobs:
+  add-cors-origin:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Add Allowed Origin to App Service
+        run: |
+          # Append origin using a unique index based on timestamp
+          az webapp config appsettings set \
+            --resource-group rg-cja-mvc-demoproj-eastus2 \
+            --name cja-mvc-demoproj \
+            --settings AllowedCorsOrigins__$(date +%s)=${{ github.event.inputs.origin }}

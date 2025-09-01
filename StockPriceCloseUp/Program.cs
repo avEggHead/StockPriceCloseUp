@@ -1,7 +1,6 @@
 ﻿using Azure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using StockPriceCloseUp.Data;
 using StockPriceCloseUp.Manager;
 
@@ -14,7 +13,8 @@ namespace StockPriceCloseUp
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
-            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(connectionString));
             builder.Services.AddDatabaseDeveloperPageExceptionFilter();
@@ -36,17 +36,25 @@ namespace StockPriceCloseUp
             builder.Services.AddControllersWithViews();
 
             builder.Services.AddScoped<IStockManager, StockManager>();
-
             builder.Services.AddHttpClient();
 
-            // DEMO ONLY: Allow all CORS. 
-            // In production, restrict origins via appsettings.json and .WithOrigins().
+            // ✅ Config-driven CORS
+            var allowedOrigins = builder.Configuration
+                .GetSection("AllowedCorsOrigins")
+                .Get<string[]>();
+
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowAll", policy =>
-                    policy.AllowAnyOrigin()
-                          .AllowAnyHeader()
-                          .AllowAnyMethod());
+                options.AddPolicy("ConfiguredCors", policy =>
+                {
+                    if (allowedOrigins != null && allowedOrigins.Length > 0)
+                    {
+                        policy.WithOrigins(allowedOrigins)
+                              .AllowAnyHeader()
+                              .AllowAnyMethod()
+                              .AllowCredentials();
+                    }
+                });
             });
 
             var app = builder.Build();
@@ -67,8 +75,8 @@ namespace StockPriceCloseUp
 
             app.UseRouting();
 
-            // Enable CORS (must go between UseRouting and UseAuthorization)
-            app.UseCors("AllowAll");
+            // ✅ Apply CORS before auth
+            app.UseCors("ConfiguredCors");
 
             app.UseAuthorization();
 
