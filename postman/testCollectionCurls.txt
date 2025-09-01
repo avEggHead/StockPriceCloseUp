@@ -1,0 +1,30 @@
+Run each of these in order to test the API endpoints
+
+curl -X GET "https://cja-mvc-demoproj.azurewebsites.net/api/stocksapi/quote?symbol=MSFT" \
+  -H "Accept: application/json"
+
+
+  curl -X GET "https://cja-mvc-demoproj.azurewebsites.net/api/stocksapi/search?query=MS" \
+  -H "Accept: application/json"
+
+
+  curl -X POST "https://cja-mvc-demoproj.azurewebsites.net/api/accountapi/register" \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"username":"testuser","password":"Pass123!"}'
+
+
+  curl -X POST "https://cja-mvc-demoproj.azurewebsites.net/api/accountapi/login" \
+  -H "Content-Type: application/json" \
+  -b cookies.txt -c cookies.txt \
+  -d '{"username":"testuser","password":"Pass123!"}'
+
+
+  curl -X POST "https://cja-mvc-demoproj.azurewebsites.net/api/accountapi/logout" \
+  -H "Content-Type: application/json" \
+  -b cookies.txt
+
+
+  curl -X GET "https://cja-mvc-demoproj.azurewebsites.net/api/accountapi/me" \
+  -H "Accept: application/json" \
+  -b cookies.txt

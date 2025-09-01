@@ -1,7 +1,6 @@
-using Azure.Identity;
+﻿using Azure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using StockPriceCloseUp.Data;
 using StockPriceCloseUp.Manager;
 
@@ -14,7 +13,8 @@ namespace StockPriceCloseUp
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
-            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(connectionString));
             builder.Services.AddDatabaseDeveloperPageExceptionFilter();
@@ -36,8 +36,26 @@ namespace StockPriceCloseUp
             builder.Services.AddControllersWithViews();
 
             builder.Services.AddScoped<IStockManager, StockManager>();
-
             builder.Services.AddHttpClient();
+
+            // ✅ Config-driven CORS
+            var allowedOrigins = builder.Configuration
+                .GetSection("AllowedCorsOrigins")
+                .Get<string[]>();
+
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("ConfiguredCors", policy =>
+                {
+                    if (allowedOrigins != null && allowedOrigins.Length > 0)
+                    {
+                        policy.WithOrigins(allowedOrigins)
+                              .AllowAnyHeader()
+                              .AllowAnyMethod()
+                              .AllowCredentials();
+                    }
+                });
+            });
 
             var app = builder.Build();
 
@@ -49,7 +67,6 @@ namespace StockPriceCloseUp
             else
             {
                 app.UseExceptionHandler("/Home/Error");
-                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
 
@@ -57,6 +74,9 @@ namespace StockPriceCloseUp
             app.UseStaticFiles();
 
             app.UseRouting();
+
+            // ✅ Apply CORS before auth
+            app.UseCors("ConfiguredCors");
 
             app.UseAuthorization();
 
