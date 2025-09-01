@@ -53,6 +53,19 @@ public class AccountApiController : ControllerBase
         await _signInManager.SignOutAsync();
         return Ok(new { message = "Logged out" });
     }
+
+    [HttpGet("me")]
+    public IActionResult Me()
+    {
+        if (!User.Identity?.IsAuthenticated ?? false)
+            return Unauthorized(new { error = "Not authenticated" });
+
+        return Ok(new
+        {
+            username = User.Identity!.Name
+        });
+    }
+
 }
 
 public class RegisterDto
