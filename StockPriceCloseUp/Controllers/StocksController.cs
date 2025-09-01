@@ -20,7 +20,7 @@ namespace StockPriceCloseUp.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Lookup(string symbol)
+        public async Task<IActionResult> Lookup(string? symbol)
         {
             if (string.IsNullOrWhiteSpace(symbol))
             {

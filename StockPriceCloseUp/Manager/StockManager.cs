@@ -11,7 +11,7 @@ namespace StockPriceCloseUp.Manager
     public class StockManager : IStockManager
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly string _finnhubApiKey;
+        private readonly string? _finnhubApiKey;
 
         public StockManager(IHttpClientFactory httpClientFactory, IConfiguration config)
         {
