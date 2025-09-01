@@ -39,6 +39,7 @@ namespace StockPriceCloseUp
             {
                 options.Cookie.SameSite = SameSiteMode.None; // allow cross-origin
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // only over HTTPS
+                options.Cookie.Domain = "cja-mvc-demoproj.azurewebsites.net"; // 👈 set correct domain
             });
 
             builder.Services.AddControllersWithViews();
