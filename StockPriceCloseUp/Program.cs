@@ -1,4 +1,4 @@
-using Azure.Identity;
+﻿using Azure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -39,6 +39,16 @@ namespace StockPriceCloseUp
 
             builder.Services.AddHttpClient();
 
+            // DEMO ONLY: Allow all CORS. 
+            // In production, restrict origins via appsettings.json and .WithOrigins().
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll", policy =>
+                    policy.AllowAnyOrigin()
+                          .AllowAnyHeader()
+                          .AllowAnyMethod());
+            });
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -49,7 +59,6 @@ namespace StockPriceCloseUp
             else
             {
                 app.UseExceptionHandler("/Home/Error");
-                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
 
@@ -57,6 +66,9 @@ namespace StockPriceCloseUp
             app.UseStaticFiles();
 
             app.UseRouting();
+
+            // Enable CORS (must go between UseRouting and UseAuthorization)
+            app.UseCors("AllowAll");
 
             app.UseAuthorization();
 
